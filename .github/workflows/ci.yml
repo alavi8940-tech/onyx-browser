@@ -2,7 +2,13 @@ name: CI
 
 on:
   push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   check:
@@ -12,7 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install dependencies
+      - name: Install dependencies on GitHub runner
         run: npm install --no-audit --no-fund
       - name: Syntax check
         run: |
@@ -22,9 +28,18 @@ jobs:
       - name: Smoke test (headless launch)
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq xvfb > /dev/null
-          timeout 30 xvfb-run -a npx electron . --no-sandbox > smoke.log 2>&1 || true
-          cat smoke.log || true
-          if grep -Eiq "cannot find module|syntaxerror|referenceerror|typeerror" smoke.log; then
+          set +e
+          timeout --signal=TERM --kill-after=5s 30s xvfb-run -a npx electron . --no-sandbox > smoke.log 2>&1
+          status=$?
+          set -e
+          cat smoke.log
+          # Electron is expected to keep running; timeout(124) is success only
+          # when no startup exception was reported.
+          if [ "$status" -ne 124 ] && [ "$status" -ne 143 ]; then
+            echo "::error::Electron exited unexpectedly with status $status"
+            exit "$status"
+          fi
+          if grep -Eiq "cannot find module|syntaxerror|referenceerror|typeerror|uncaught" smoke.log; then
             echo "::error::App failed to start"
             exit 1
           fi
@@ -48,3 +63,26 @@ jobs:
             dist/*.AppImage
             dist/*.deb
           retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - name: Build release packages
+        run: npx electron-builder --linux AppImage deb --publish never
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: Onyx ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build {0}', github.run_number) }}
+          generate_release_notes: true
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/v') }}
+          files: |
+            dist/*.AppImage
+            dist/*.deb
