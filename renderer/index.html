@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net data:; img-src data: blob: https: http:; script-src 'self'" />
+<title>Onyx</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="bg">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="grain"></div>
+</div>
+
+<header id="chrome">
+  <div id="tabbar">
+    <div class="brand"><span class="brand-dot"></span>ONYX</div>
+    <div id="tabs"></div>
+    <button id="btnNewTab" class="icon-btn" title="تب جدید (Ctrl+T)">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <div id="drag-space"></div>
+    <div id="win-controls">
+      <button id="wcMin" title="کمینه"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <button id="wcMax" title="بزرگ/کوچک"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
+      <button id="wcClose" title="بستن" class="danger"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+  </div>
+
+  <div id="toolbar">
+    <button id="btnBack" class="nav icon-btn" title="عقب (Alt+→)"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button id="btnFwd" class="nav icon-btn" title="جلو (Alt+←)"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <button id="btnReload" class="nav icon-btn" title="بارگذاری مجدد (F5)"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-1.5 6M20 5v6h-6"/></svg></button>
+    <button id="btnHome" class="nav icon-btn" title="خانه"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></button>
+
+    <div id="omnibox-wrap">
+      <button id="engineChip" title="موتور جستجو">
+        <span id="engineDot"></span><span id="engineName"></span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <input id="omnibox" type="text" placeholder="جستجو کن یا نشانی بده…" spellcheck="false" autocomplete="off" />
+      <span id="secIcon" title=""></span>
+      <div id="suggest" hidden></div>
+      <div id="engineMenu" hidden></div>
+    </div>
+
+    <button id="btnTor" class="tool icon-btn" title="تب تور جدید (Ctrl+Shift+T)">
+      <svg viewBox="0 0 24 24"><path d="M12 3c3 3.5 5 6.2 5 9.5A5 5 0 0 1 12 17.5 5 5 0 0 1 7 12.5C7 9.2 9 6.5 12 3z"/><path d="M12 21v-3.5"/></svg>
+      <span id="torDot"></span>
+    </button>
+    <button id="btnShield" class="tool icon-btn" title="محافظت‌ها">
+      <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-3 8.4-7 10-4-1.6-7-5.6-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+    </button>
+    <button id="btnFind" class="tool icon-btn" title="جستجو در صفحه (Ctrl+F)">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    </button>
+    <button id="btnSettings" class="tool icon-btn" title="تنظیمات">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.3 1a7 7 0 0 0-2-1.2L14 3h-4l-.6 2.6a7 7 0 0 0-2 1.2l-2.3-1-2 3.5 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 2 1.2L10 21h4l.6-2.6a7 7 0 0 0 2-1.2l2.3 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>
+    </button>
+  </div>
+
+  <div id="progress"><div id="progressBar"></div></div>
+
+  <div id="findbar" hidden>
+    <input id="findInput" type="text" placeholder="یافتن در صفحه…" spellcheck="false" />
+    <span id="findCount"></span>
+    <button id="findPrev" class="mini-btn">قبلی</button>
+    <button id="findNext" class="mini-btn">بعدی</button>
+    <button id="findClose" class="mini-btn danger">×</button>
+  </div>
+</header>
+
+<main id="content">
+  <section id="home">
+    <div class="home-inner">
+      <div id="clock">--:--</div>
+      <div id="dateLine"></div>
+      <div id="greet"></div>
+      <div class="home-search">
+        <button id="homeEngineChip"><span id="homeEngineDot"></span><span id="homeEngineName"></span></button>
+        <input id="homeSearch" type="text" placeholder="حریم خصوصی‌ات، از اینجا شروع می‌شود…" spellcheck="false" autocomplete="off" />
+        <button id="homeGo" title="جستجو">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        </button>
+      </div>
+      <div id="tiles"></div>
+      <div id="torPill" hidden><span class="pulse"></span><span id="torPillText">تور متصل نیست</span></div>
+      <div class="home-foot">بدون تاریخچه · بدون حافظه · بدون ردپا</div>
+    </div>
+  </section>
+</main>
+
+<div id="toasts"></div>
+
+<aside id="settings" hidden>
+  <div class="settings-card">
+    <header><h2>تنظیمات</h2><button id="settingsClose" class="icon-btn danger"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="settings-body">
+
+      <section>
+        <h3>ظاهر</h3>
+        <label class="row">پوسته
+          <select id="setTheme">
+            <option value="midnight">نیمه‌شب</option>
+            <option value="aurora">شفق قطبی</option>
+            <option value="nord">نورد</option>
+            <option value="rose">گلگون</option>
+            <option value="matrix">ماتریکس</option>
+            <option value="snow">برفی (روشن)</option>
+          </select>
+        </label>
+        <label class="row">رنگ تأکیدی
+          <span id="accentSwatches"></span>
+          <input type="color" id="setAccent" value="#7c5cff" />
+        </label>
+        <label class="row">اندازه فونت رابط
+          <input type="range" id="setFont" min="12" max="18" step="1" />
+        </label>
+        <label class="row switch-row"><input type="checkbox" id="setAnim" /> انیمیشن‌ها</label>
+        <label class="row">پس‌زمینه صفحه خانه
+          <select id="setBg">
+            <option value="aurora">شفق</option>
+            <option value="minimal">ساده</option>
+          </select>
+        </label>
+      </section>
+
+      <section>
+        <h3>جستجو</h3>
+        <label class="row">موتور پیش‌فرض
+          <select id="setEngine"></select>
+        </label>
+        <p class="hint">در نوار آدرس با <bdi>!کلید</bdi> می‌توانید موتور را برای همان جستجو عوض کنید؛ مثلاً <bdi>!g ماشین</bdi> یا <bdi>!yt گربه</bdi>.</p>
+        <label class="row">صفحه خانگی
+          <input type="text" id="setHome" placeholder="خالی = صفحه خانه داخلی" dir="ltr" />
+        </label>
+      </section>
+
+      <section>
+        <h3>حریم خصوصی</h3>
+        <label class="row switch-row"><input type="checkbox" id="setAdblock" /> مسدودسازی تبلیغ و ردیاب</label>
+        <label class="row switch-row"><input type="checkbox" id="setDnt" /> ارسال Do-Not-Track و GPC</label>
+        <p class="hint">همه چیز فقط در رم اجرا می‌شود: کوکی، تاریخچه، کش و حتی پوشه پروفایل روی دیسک ذخیره نمی‌شوند. هنگام خروج همه‌چیز پاک می‌شود.</p>
+        <label class="row switch-row"><input type="checkbox" id="setSavePrefs" /> ذخیره تنظیمات روی دیسک (فقط تنظیمات — هیچ تاریخی)</label>
+        <button id="btnWipe" class="wide danger-btn">پاک‌سازی فوری همه داده‌ها (حالت روح)</button>
+      </section>
+
+      <section>
+        <h3>تور</h3>
+        <div class="row tor-status-row">
+          <span id="torStatusText">غیرفعال</span>
+          <button id="btnTorToggle" class="wide accent-btn">اتصال به تور</button>
+        </div>
+        <div id="torInfoBox" hidden></div>
+        <label class="row">پورت SOCKS
+          <input type="number" id="setTorPort" min="9050" max="9550" dir="ltr" />
+        </label>
+        <p class="hint">اگر تور سیستم شما روشن باشد از همان استفاده می‌شود؛ وگرنه خود مرورگر آن را راه می‌اندازد.</p>
+      </section>
+
+      <section>
+        <h3>میان‌برها</h3>
+        <table class="keys">
+          <tr><td>Ctrl+T</td><td>تب جدید</td></tr>
+          <tr><td>Ctrl+Shift+T</td><td>تب تور جدید</td></tr>
+          <tr><td>Ctrl+W</td><td>بستن تب</td></tr>
+          <tr><td>Ctrl+L / Ctrl+K</td><td>نوار آدرس</td></tr>
+          <tr><td>Ctrl+Tab</td><td>تب بعدی / قبلی</td></tr>
+          <tr><td>Ctrl+1…9</td><td>پرش به تب</td></tr>
+          <tr><td>Ctrl+F</td><td>جستجو در صفحه</td></tr>
+          <tr><td>Ctrl+= / Ctrl−</td><td>زوم</td></tr>
+          <tr><td>F5 / Ctrl+R</td><td>بارگذاری مجدد</td></tr>
+          <tr><td>Esc</td><td>توقف بارگذاری / بستن منوها</td></tr>
+        </table>
+      </section>
+
+      <section class="about">
+        <h3>درباره</h3>
+        <p>Onyx نسخه ۱٫۰ — مرورگری زیبا، بی‌حافظه و بی‌ردپا.<br/>ساخته‌شده با Electron + Tor. هیچ داده‌ای از شما نگه داشته نمی‌شود.</p>
+      </section>
+
+    </div>
+  </div>
+</aside>
+
+<div id="ctxmenu" hidden></div>
+<div id="shieldMenu" hidden>
+  <label class="switch-row"><input type="checkbox" id="qkAdblock" /> مسدودسازی تبلیغ و ردیاب</label>
+  <label class="switch-row"><input type="checkbox" id="qkDnt" /> درخواست عدم ردیابی (DNT/GPC)</label>
+  <div class="menu-sep"></div>
+  <button id="qkWipe" class="menu-item danger-text">پاک‌سازی فوری داده‌ها</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

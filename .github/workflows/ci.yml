@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Syntax check
+        run: |
+          node --check main.js
+          node --check preload.js
+          node --check renderer/app.js
+      - name: Smoke test (headless launch)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb > /dev/null
+          timeout 30 xvfb-run -a npx electron . --no-sandbox > smoke.log 2>&1 || true
+          cat smoke.log || true
+          if grep -Eiq "cannot find module|syntaxerror|referenceerror|typeerror" smoke.log; then
+            echo "::error::App failed to start"
+            exit 1
+          fi
+          echo "Smoke test OK"
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - name: Build Linux packages
+        run: npx electron-builder --linux AppImage deb --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onyx-linux
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+          retention-days: 14
