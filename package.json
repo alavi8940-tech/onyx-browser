@@ -15,10 +15,14 @@
       "output": "dist"
     },
     "linux": {
-      "targets": ["AppImage", "deb"],
+      "target": ["AppImage", "deb"],
       "category": "Network",
+      "maintainer": "alavi8940-tech",
       "artifactName": "onyx-${version}-${arch}.${ext}"
     }
+  },
+  "author": {
+    "name": "alavi8940-tech"
   },
   "license": "MIT",
   "devDependencies": {
