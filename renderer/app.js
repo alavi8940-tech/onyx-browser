@@ -74,6 +74,17 @@ const el = {
   wcMin: $('#wcMin'), wcMax: $('#wcMax'), wcClose: $('#wcClose')
 };
 
+// Zoom indicator — created dynamically so the HTML stays untouched.
+const zoomBtn = document.createElement('button');
+zoomBtn.id = 'zoomBtn';
+zoomBtn.className = 'tool icon-btn';
+zoomBtn.title = 'بازنشانی زوم (Ctrl+0)';
+zoomBtn.textContent = '100%';
+el.toolbar = $('#toolbar');
+el.toolbar.insertBefore(zoomBtn, el.find);
+el.zoomBtn = zoomBtn;
+zoomBtn.addEventListener('click', () => zoom(0));
+
 function activeTab() { return tabs.find(t => t.id === activeId) || null; }
 
 function toast(msg, ms = 3500) {
@@ -183,6 +194,11 @@ function createTab({ url = null, tor: useTor = false, activate = true } = {}) {
   li.addEventListener('mousedown', ev => {
     if (ev.button === 0) activateTab(tab.id);
     else if (ev.button === 1) closeTab(tab.id);
+  });
+  li.addEventListener('contextmenu', ev => {
+    ev.preventDefault();
+    if (activeId !== tab.id) activateTab(tab.id);
+    showTabMenu(tab, ev);
   });
   li.querySelector('.close-x').addEventListener('click', ev => {
     ev.stopPropagation();
@@ -600,11 +616,49 @@ function showCtxMenu(params, wv) {
   m.insertAdjacentHTML('beforeend', '<div class="menu-sep"></div>');
   add('بررسی عنصر', () => { try { wv.inspectElement(params.x, params.y); } catch {} });
 
-  m.style.left = px + 'px';
-  m.style.top = '0px';
   m.hidden = false;
-  const py = Math.min(params.y, innerHeight - m.offsetHeight - 12);
+  const mw = m.offsetWidth || 220;
+  const mh = m.offsetHeight || 240;
+  const px = Math.min(params.x, innerWidth - mw - 12);
+  const py = Math.min(params.y, innerHeight - mh - 12);
+  m.style.left = Math.max(8, px) + 'px';
   m.style.top = Math.max(8, py) + 'px';
+}
+
+function duplicateTab(tab) {
+  createTab({ url: tab.url || undefined, tor: tab.tor });
+}
+
+function closeTabsExcept(id, opts = {}) {
+  const idx = tabs.findIndex(t => t.id === id);
+  tabs.filter((t, i) => {
+    if (t.id === id) return false;
+    if (opts.right && i <= idx) return false;
+    return true;
+  }).forEach(t => closeTab(t.id));
+}
+
+function showTabMenu(tab, ev) {
+  const m = el.ctxmenu;
+  m.innerHTML = '';
+  const add = (label, fn, o = {}) => {
+    const b = document.createElement('button');
+    b.className = 'menu-item' + (o.danger ? ' danger-text' : '');
+    b.innerHTML = label + (o.key ? `<span class="menu-key">${o.key}</span>` : '');
+    if (o.disabled) b.disabled = true;
+    else b.addEventListener('click', () => { m.hidden = true; fn(); });
+    m.appendChild(b);
+  };
+  add('بستن تب', () => closeTab(tab.id), { key: 'Ctrl+W' });
+  add('تکرار تب', () => duplicateTab(tab));
+  add('بارگذاری مجدد', () => { if (tab.view) tab.view.reload(); });
+  m.insertAdjacentHTML('beforeend', '<div class="menu-sep"></div>');
+  add('بستن سایر تب‌ها', () => closeTabsExcept(tab.id));
+  add('بستن تب‌های سمت راست', () => closeTabsExcept(tab.id, { right: true }));
+  if (tab.url) add('کپی نشانی', () => navigator.clipboard.writeText(tab.url));
+  m.style.left = Math.min(ev.clientX, innerWidth - 230) + 'px';
+  m.style.top = Math.max(8, Math.min(ev.clientY, innerHeight - m.offsetHeight - 12)) + 'px';
+  m.hidden = false;
 }
 
 async function startTorFlow(autoTab) {
@@ -676,6 +730,10 @@ function hydrateSettings() {
   $('#setBg').value = PREFS.bgStyle;
   $('#setAdblock').checked = PREFS.adblock;
   $('#setDnt').checked = PREFS.dnt;
+  $('#setReferer').checked = PREFS.stripReferer;
+  $('#setWebrtc').checked = PREFS.blockWebRtc;
+  $('#setHttps').checked = PREFS.httpsUpgrade;
+  const v = $('#appVersion'); if (v) v.textContent = 'نسخه ' + (PREFS.appVersion || '1.0.0');
   $('#setSavePrefs').checked = PREFS.savePrefs;
   $('#setHome').value = PREFS.homepage || '';
   $('#setTorPort').value = PREFS.torPort;
@@ -775,6 +833,7 @@ function zoom(delta) {
     let z = tab.view.getZoomLevel();
     z = delta === 0 ? 0 : Math.max(-6, Math.min(6, z + delta));
     tab.view.setZoomLevel(z);
+    if (el.zoomBtn) el.zoomBtn.textContent = Math.round(Math.pow(1.2, z) * 100) + '%';
   } catch {}
 }
 
@@ -858,6 +917,12 @@ $('#setAnim').addEventListener('change', async e => { await savePrefs({ animatio
 $('#setBg').addEventListener('change', async e => { await savePrefs({ bgStyle: e.target.value }); applyTheme(); });
 $('#setAdblock').addEventListener('change', async e => { await savePrefs({ adblock: e.target.checked }); $('#qkAdblock').checked = e.target.checked; });
 $('#setDnt').addEventListener('change', async e => { await savePrefs({ dnt: e.target.checked }); $('#qkDnt').checked = e.target.checked; });
+$('#setReferer').addEventListener('change', async e => { await savePrefs({ stripReferer: e.target.checked }); });
+$('#setWebrtc').addEventListener('change', async e => {
+  await savePrefs({ blockWebRtc: e.target.checked });
+  toast('برای اعمال تغییر WebRTC، برنامه را یک‌بار راه‌اندازی مجدد کنید', 5000);
+});
+$('#setHttps').addEventListener('change', async e => { await savePrefs({ httpsUpgrade: e.target.checked }); });
 $('#setSavePrefs').addEventListener('change', async e => {
   await savePrefs({ savePrefs: e.target.checked });
   toast(e.target.checked ? 'تنظیمات روی دیسک ذخیره می‌شود (فقط تنظیمات)' : 'ذخیره‌سازی غیرفعال شد — هیچ چیزی روی دیسک نمی‌ماند');
@@ -986,6 +1051,7 @@ window.onyx.onToast(t => {
   if (t.kind === 'dl-done') toast(`دانلود کامل شد: ${t.file}`, 4000);
   else if (t.kind === 'dl-progress') toast(`در حال دانلود ${t.file} — ${fmtBytes(t.received)}${t.total ? ' از ' + fmtBytes(t.total) : ''}`, 1500);
   else if (t.kind === 'dl-fail') toast(`دانلود ناموفق: ${t.file}`, 4000);
+  else if (t.kind === 'update') toast(t.file || 'نسخه جدید در دسترس است', 5000);
 });
 
 window.onyx.onWinMax(m => el.wcMax.classList.toggle('maxed', m));

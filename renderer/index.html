@@ -144,6 +144,10 @@
         <h3>حریم خصوصی</h3>
         <label class="row switch-row"><input type="checkbox" id="setAdblock" /> مسدودسازی تبلیغ و ردیاب</label>
         <label class="row switch-row"><input type="checkbox" id="setDnt" /> ارسال Do-Not-Track و GPC</label>
+        <label class="row switch-row"><input type="checkbox" id="setReferer" /> پاک‌سازی ارجاع‌دهندهٔ شخص‌ثالث</label>
+        <label class="row switch-row"><input type="checkbox" id="setWebrtc" /> غیرفعال‌سازی WebRTC (جلوگیری از نشت IP)</label>
+        <label class="row switch-row"><input type="checkbox" id="setHttps" /> ارتقای خودکار http به https</label>
+        <p class="hint">تنظیم WebRTC پس از راه‌اندازی مجدد اعمال می‌شود. برای حریم خصوصی بیشتر، تغییر موتور جستجو یا استفاده از تب تور را بررسی کنید.</p>
         <p class="hint">همه چیز فقط در رم اجرا می‌شود: کوکی، تاریخچه، کش و حتی پوشه پروفایل روی دیسک ذخیره نمی‌شوند. هنگام خروج همه‌چیز پاک می‌شود.</p>
         <label class="row switch-row"><input type="checkbox" id="setSavePrefs" /> ذخیره تنظیمات روی دیسک (فقط تنظیمات — هیچ تاریخی)</label>
         <button id="btnWipe" class="wide danger-btn">پاک‌سازی فوری همه داده‌ها (حالت روح)</button>
@@ -180,7 +184,7 @@
 
       <section class="about">
         <h3>درباره</h3>
-        <p>Onyx نسخه ۱٫۰ — مرورگری زیبا، بی‌حافظه و بی‌ردپا.<br/>ساخته‌شده با Electron + Tor. هیچ داده‌ای از شما نگه داشته نمی‌شود.</p>
+        <p>Onyx <span id="appVersion">نسخه ۱٫۰</span> — مرورگری زیبا، بی‌حافظه و بی‌ردپا.<br/>ساخته‌شده با Electron + Tor. هیچ داده‌ای از شما نگه داشته نمی‌شود.</p>
       </section>
 
     </div>

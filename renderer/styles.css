@@ -272,6 +272,7 @@ html[data-bg="minimal"] .blob { display: none; }
   border-radius: 10px;
 }
 #findInput { flex: 1; background: none; border: none; outline: none; font-size: var(--ui-font); }
+#zoomBtn { font-size: calc(var(--ui-font) - 1px); min-width: 44px; font-variant-numeric: tabular-nums; letter-spacing: .3px; }
 .mini-btn { padding: 4px 10px; border-radius: 7px; font-size: calc(var(--ui-font) - 2px); color: var(--sub); }
 .mini-btn:hover { background: var(--panel); color: var(--text); }
 .mini-btn.danger:hover { color: var(--danger); }

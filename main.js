@@ -22,8 +22,12 @@ const DEFAULT_PREFS = {
   homepage: '',
   adblock: true,
   dnt: true,
+  stripReferer: true,
+  blockWebRtc: true,
+  httpsUpgrade: false,
   torEnabled: false,
   torPort: 9050,
+  windowBounds: null,
   tiles: []
 };
 
@@ -42,7 +46,12 @@ try {
 } catch {}
 
 app.commandLine.appendSwitch('disable-breakpad');
-app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication,Translate,MediaRouter');
+app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication,Translate,MediaRouter,BackgroundFetch,WebBluetooth,WebUSB,WebHID,WebPrinting,ComputePressure');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+// Privacy: never leak the local IP via WebRTC unless the user opts out.
+if (prefs.blockWebRtc) app.commandLine.appendSwitch('disable-webrtc');
 
 const GENERIC_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
@@ -75,6 +84,20 @@ const BLOCKLIST = [
 function hostBlocked(h) {
   h = (h || '').toLowerCase();
   return BLOCKLIST.some(d => h === d || h.endsWith('.' + d));
+}
+
+// Substring / path patterns that slip past a host-only blocklist.
+const BLOCK_PATTERNS = [
+  /[?&](__a|__adi|_ga|_gid|_gat|fbclid|gclid|mc_eid|mkt_tok|igshid|utm_)[=]/i,
+  /(\/|\.)(pixel|beacon|track(er|ing)?|analytics|telemetry|collect|impression|tag\/|sponsor)\b/i,
+  /\b(doubleclick|adservice|adnxs|rubiconproject|criteo|pubmatic|taboola|outbrain)\b/i
+];
+
+function urlBlocked(u) {
+  let host = '';
+  try { host = new URL(u).hostname; } catch {}
+  if (host && hostBlocked(host)) return true;
+  return BLOCK_PATTERNS.some(p => p.test(u));
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -164,30 +187,48 @@ function send(ch, payload) {
 function applyAdblock() {
   for (const ses of [clearSes, torSes]) {
     const f = { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] };
-    if (prefs.adblock) {
-      ses.webRequest.onBeforeRequest(f, (d, cb) => {
-        try { cb({ cancel: hostBlocked(new URL(d.url).hostname) }); }
-        catch { cb({ cancel: false }); }
-      });
-    } else {
-      ses.webRequest.onBeforeRequest(f, (d, cb) => cb({ cancel: false }));
-    }
+    ses.webRequest.onBeforeRequest(f, (d, cb) => {
+      if (!prefs.adblock) return cb({ cancel: false });
+      try { cb({ cancel: urlBlocked(d.url) }); }
+      catch { cb({ cancel: false }); }
+    });
   }
 }
 
-function applyDNT() {
+// Header privacy: DNT/GPC signalling + strip third-party Referer and
+// X-Requested-With leakage. Reads live prefs so toggles apply without restart.
+function applyHeaderPrivacy() {
   for (const ses of [clearSes, torSes]) {
     const f = { urls: ['http://*/*', 'https://*/*'] };
     ses.webRequest.onBeforeSendHeaders(f, (d, cb) => {
       const h = d.requestHeaders;
-      if (prefs.dnt) {
-        h['DNT'] = '1';
-        h['Sec-GPC'] = '1';
-      } else {
-        delete h['DNT'];
-        delete h['Sec-GPC'];
-      }
+      const firstParty = (() => {
+        try { return new URL(d.url).hostname === new URL(d.referrer || '').hostname; } catch { return false; }
+      })();
+      if (prefs.dnt) { h['DNT'] = '1'; h['Sec-GPC'] = '1'; }
+      else { delete h['DNT']; delete h['Sec-GPC']; }
+      if (prefs.stripReferer && !firstParty) delete h['Referer'];
+      if (prefs.stripReferer) delete h['X-Requested-With'];
       cb({ requestHeaders: h });
+    });
+  }
+}
+
+// Best-effort HTTPS upgrade for plain-text requests (opt-in).
+function applyHttpsUpgrade() {
+  for (const ses of [clearSes, torSes]) {
+    const f = { urls: ['http://*/*'] };
+    ses.webRequest.onBeforeRequest(f, (d, cb) => {
+      if (!prefs.httpsUpgrade) return cb({ cancel: false });
+      if (!['mainFrame', 'subFrame', 'stylesheet', 'script', 'image', 'font', 'xhr', 'fetch'].includes(d.resourceType)) return cb({ cancel: false });
+      try {
+        const u = new URL(d.url);
+        if (u.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(u.hostname)) {
+          u.protocol = 'https:';
+          return cb({ redirectURL: u.toString() });
+        }
+      } catch {}
+      cb({ cancel: false });
     });
   }
 }
@@ -261,6 +302,30 @@ function createWindow() {
     }
   });
   mainWin.setMenuBarVisibility(false);
+
+  if (prefs.savePrefs && prefs.windowBounds) {
+    try {
+      const b = prefs.windowBounds;
+      if (b && b.width && b.height) {
+        mainWin.setBounds({ x: b.x, y: b.y, width: b.width, height: b.height }, false);
+        if (b.maximized) mainWin.maximize();
+      }
+    } catch {}
+  }
+
+  const persistBounds = () => {
+    if (!prefs.savePrefs) return;
+    try {
+      const b = mainWin.getBounds();
+      b.maximized = mainWin.isMaximized();
+      prefs.windowBounds = b;
+      fs.mkdirSync(CONFIG_DIR, { recursive: true });
+      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(prefs, null, 2));
+    } catch {}
+  };
+  mainWin.on('resize', persistBounds);
+  mainWin.on('move', persistBounds);
+
   mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   mainWin.once('ready-to-show', () => mainWin.show());
   const maxState = () => send('win:max', mainWin.isMaximized());
@@ -268,7 +333,7 @@ function createWindow() {
   mainWin.on('unmaximize', maxState);
 }
 
-ipcMain.handle('prefs:get', () => prefs);
+ipcMain.handle('prefs:get', () => ({ ...prefs, appVersion: app.getVersion() }));
 
 ipcMain.handle('prefs:set', (e, patch) => {
   const oldTorEnabled = prefs.torEnabled;
@@ -283,7 +348,8 @@ ipcMain.handle('prefs:set', (e, patch) => {
     try { fs.rmSync(SETTINGS_FILE, { force: true }); } catch {}
   }
   applyAdblock();
-  applyDNT();
+  applyHeaderPrivacy();
+  applyHttpsUpgrade();
   if ((prefs.torPort | 0) !== oldTorPort && tor.status !== 'off') tor.stop();
   syncTorProxy();
   if (prefs.torEnabled && !oldTorEnabled) {
@@ -359,14 +425,33 @@ app.on('second-instance', () => {
   }
 });
 
-app.on('window-all-closed', () => app.quit());
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+let autoUpdater = null;
+function initAutoUpdater() {
+  if (!app.isPackaged) return; // only update installed builds
+  try { autoUpdater = require('electron-updater').autoUpdater; }
+  catch { return; }
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-available', () => send('toast', { kind: 'update', file: 'نسخه جدید در دسترس است — هنگام خروج نصب می‌شود' }));
+  autoUpdater.on('error', () => {});
+  try { autoUpdater.checkForUpdatesAndNotify().catch(() => {}); } catch {}
+}
 
 app.whenReady().then(async () => {
   clearSes = harden(session.fromPartition('onyx-clear'));
   torSes = harden(session.fromPartition('onyx-tor'));
   applyAdblock();
-  applyDNT();
+  applyHeaderPrivacy();
+  applyHttpsUpgrade();
   await syncTorProxy();
   if (prefs.torEnabled) tor.start().then(() => { if (tor.status === 'on') syncTorProxy(); });
   createWindow();
+  initAutoUpdater();
+});
+
+app.on('activate', () => {
+  if (mainWin) { mainWin.show(); return; }
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });

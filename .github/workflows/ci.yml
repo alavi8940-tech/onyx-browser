@@ -25,6 +25,8 @@ jobs:
           node --check main.js
           node --check preload.js
           node --check renderer/app.js
+      - name: Generate icon
+        run: node scripts/make-icon.js
       - name: Smoke test (headless launch)
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq xvfb > /dev/null
@@ -47,35 +49,50 @@ jobs:
 
   build:
     needs: check
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            args: "--linux AppImage deb rpm"
+          - os: windows-latest
+            platform: win
+            args: "--win nsis portable"
+          - os: macos-latest
+            platform: mac
+            args: "--mac dmg zip"
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install --no-audit --no-fund
-      - name: Build Linux packages
-        run: npx electron-builder --linux AppImage deb --publish never
-      - uses: actions/upload-artifact@v4
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Generate icon
+        run: node scripts/make-icon.js
+      - name: Build ${{ matrix.platform }} packages
+        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload ${{ matrix.platform }} artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: onyx-linux
-          path: |
-            dist/*.AppImage
-            dist/*.deb
+          name: onyx-${{ matrix.platform }}
+          path: dist/**/*
           retention-days: 14
 
   release:
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [check, build]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
         with:
-          node-version: 20
-      - run: npm install --no-audit --no-fund
-      - name: Build release packages
-        run: npx electron-builder --linux AppImage deb --publish never
+          path: artifacts
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -83,6 +100,4 @@ jobs:
           name: Onyx ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build {0}', github.run_number) }}
           generate_release_notes: true
           prerelease: ${{ github.event_name == 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/v') }}
-          files: |
-            dist/*.AppImage
-            dist/*.deb
+          files: artifacts/**/*

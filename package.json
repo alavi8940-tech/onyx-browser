@@ -1,24 +1,48 @@
 {
   "name": "onyx-browser",
   "productName": "Onyx",
-  "version": "1.0.0",
-  "description": "مرورگر خصوصی، زیبا و بدون ردپا با پشتیبانی تور",
+  "version": "1.2.0",
+  "description": "مرورگر خصوصی، زیبا و بدون ردپا با پشتیبانی تور — ساخته‌شده با Electron",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --linux AppImage deb"
+    "dist": "electron-builder --linux AppImage deb",
+    "icon": "node scripts/make-icon.js"
   },
   "build": {
     "appId": "ir.onyx.browser",
     "productName": "Onyx",
+    "artifactName": "onyx-${version}-${os}-${arch}.${ext}",
+    "icon": "build/icon.png",
     "directories": {
       "output": "dist"
     },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "build/icon.png"
+    ],
+    "publish": [
+      { "provider": "github" }
+    ],
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": ["AppImage", "deb", "rpm"],
       "category": "Network",
       "maintainer": "alavi8940-tech",
-      "artifactName": "onyx-${version}-${arch}.${ext}"
+      "synopsis": "مرورگر خصوصی و بی‌حافظه با پشتیبانی تور",
+      "description": "Onyx — Private, beautiful, memory-less browser with Tor support.",
+      "artifactName": "onyx-${version}-linux-${arch}.${ext}"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "artifactName": "onyx-${version}-win-${arch}.${ext}"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.utilities",
+      "identity": null,
+      "artifactName": "onyx-${version}-mac-${arch}.${ext}"
     }
   },
   "author": {
@@ -27,6 +51,7 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "electron-updater": "^6.3.4"
   }
 }
